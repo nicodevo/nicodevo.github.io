@@ -40,9 +40,9 @@ The due day for each lab can be found on the [course wesbite](https://www.yuehao
 Let's first import the datasets and necessary packages. **If you are using a Windows computer**, you need to install [RTools](https://cran.r-project.org/bin/windows/Rtools/) first. After installing this data package with `devtools::install_github('andykrause/kingCoData')`, you can load the data with: `data(kingco_sales)` and `data(kingco_homes)`. You can find the datasets and Readme file in [this repository](https://github.com/andykrause/kingCoData).
 
 ```{r message=FALSE}
-install.packages("devtools")
+# install.packages("devtools")
 library('tidyverse')
-devtools::install_github('andykrause/kingCoData') # You only need to run the installation once
+# devtools::install_github('andykrause/kingCoData') # You only need to run the installation once
 library('kingCoData') # load the data package
 data(kingco_sales) # load the sale data
 ```
@@ -607,33 +607,16 @@ sales_join <- kingco_sales %>%
   mutate(
     price = sale_price,
     city = toupper(coalesce(city.x, city.y)),
-    land_val = coalesce(land_val.x, land_val.y),
-    imp_val = coalesce(imp_val.x, imp_val.y),
-    sqft = coalesce(sqft.x, sqft.y),
-    beds = coalesce(beds.x, beds.y),
-    bath_full = coalesce(bath_full.x, bath_full.y),
-    bath_3qtr = coalesce(bath_3qtr.x, bath_3qtr.y),
-    bath_half = coalesce(bath_half.x, bath_half.y),
-    lot_size = coalesce(sqft_lot.x, sqft_lot.y),
-    view_lakewash = coalesce(view_lakewash.x, view_lakewash.y),
-    view_lakesamm = coalesce(view_lakesamm.x, view_lakesamm.y)
-  ) %>%
-  mutate(
-    total_val = land_val + imp_val,
-    ppsf = price / pmax(sqft, 1),
+    total_val = coalesce(land_val.x, land_val.y) + coalesce(imp_val.x, imp_val.y),
+    ppsf = price / pmax(coalesce(sqft.x, sqft.y), 1),
     year = year(sale_date),
-    region = case_when(city %in% eastside ~ "Eastside", TRUE ~ "Other")
-  ) %>%
-  distinct(pinx, sale_date, .keep_all = TRUE) %>%
-  select(sale_id, pinx, sale_date, year, city, region, price, sqft, ppsf, beds,
-         bath_full, bath_3qtr, bath_half, lot_size, land_val, imp_val, total_val,
-         view_lakewash, view_lakesamm)
+    region = if_else(city %in% eastside, "Eastside", "Other")
+  )
 
 eastside_summary <- sales_join %>%
   filter(year >= 2020, region == "Eastside") %>%
   group_by(city) %>%
   summarise(
-    n = n(),
     median_price = median(price, na.rm = TRUE),
     mean_ppsf = mean(ppsf, na.rm = TRUE),
     med_total_val = median(total_val, na.rm = TRUE),
@@ -641,26 +624,10 @@ eastside_summary <- sales_join %>%
   ) %>%
   arrange(desc(median_price))
 
-top5 <- sales_join %>%
-  filter(year >= 2020, region == "Eastside") %>%
-  group_by(city) %>%
-  slice_max(order_by = price, n = 5, with_ties = FALSE) %>%
-  ungroup() %>%
-  select(pinx, city, year, price, sqft, ppsf, beds, bath_full, bath_3qtr, bath_half, lot_size) %>%
-  arrange(desc(price))
-
-sample_view <- sales_join %>%
-  filter(year >= 2020, region == "Eastside") %>%
-  sample_n(20) %>%
-  select(pinx, city, year, price, sqft, ppsf, view_lakewash, view_lakesamm)
-
 eastside_summary
-top5
-sample_view
-summary(sales_join$price)
 ```
 
-From this exploration, we can see that Bellevue consistently has the highest median sale prices and property values per square foot among Eastside cities since 2020. The sample and top sales data show a wide range of property prices, and the summary statistics confirm a right-skewed distribution influenced by a small number of very high-value homes.
+This analysis explores home sales in King County’s Eastside cities since 2020. After joining and cleaning the data, I calculated key metrics like median sale price, average price per square foot, and median total property value by city. The results show that Bellevue has the highest overall values, with noticeable variation across the Eastside, highlighting market differences within the region.
 
 ### 📚 TODO: Using GitHub
 
